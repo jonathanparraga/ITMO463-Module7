@@ -150,4 +150,26 @@ def lambda_handler(event, context):
     response_del_object = client_s3.delete_object(Bucket=bucket_name, Key=key)
     print(response_del_object)
 
+    print("Updating DynamoDB record with done status and presigned URL...")
+    response_update = client_dynamo.update_item(
+        TableName=response_dynamo_tables['TableNames'][0],
+        Key={
+            'RecordNumber': {
+                'S': str(body)
+            }
+        },
+        UpdateExpression='SET RAWS3URL = :rawdone, FINISHED_S3_URL = :finishedurl',
+        ExpressionAttributeValues={
+            ':rawdone': {
+                'S': 'done'
+            },
+            ':finishedurl': {
+                'S': str(response_presigned)
+            }
+        }
+    )
+
+    print("DynamoDB update response:")
+    print(response_update)
+
     return {'statusCode': 200, 'body': json.dumps(response_presigned)}
