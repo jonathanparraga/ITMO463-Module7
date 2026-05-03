@@ -1,23 +1,23 @@
 # Add values
 # Use the AMI of the custom Ec2 image you previously created
-imageid                = "ami-021769d848635b6f4"
+imageid = "ami-018a96c79ce9e5447"
 # Use t2.micro for the AWS Free Tier
-instance-type          = "t2.micro"
-key-name               = "coursera-key"
-vpc_security_group_ids = "sg-0fafd233da91b97bd"
+instance-type          = "t3.micro"
+key-name               = "EC2-ITMO444-Module2-Lab"
+vpc_security_group_ids = "sg-07fdd6e2ff6d14a4f"
 tag-name               = "module-07"
-user-sns-topic         = "jrh-updates"
-elb-name               = "jrh-elb"
-tg-name                = "jrh-tg"
-asg-name               = "jrh-asg"
+user-sns-topic         = "jp-sns-topic"
+elb-name               = "jp-elb"
+tg-name                = "jp-tg"
+asg-name               = "jp-asg"
 desired                = 3
 min                    = 2
 max                    = 5
 number-of-azs          = 3
 region                 = "us-east-2"
-raw-s3-bucket          = "jrh-raw-bucket"
-finished-s3-bucket     = "jrh-finished-bucket"
-sqs-name               = "jrh-sqs"
-dynamodb-name          = "jrh-dynamo"
+raw-s3-bucket          = "jp-raw-s3b-041226"
+finished-s3-bucket     = "jp-finished-s3b-041226"
+sqs-name               = "jp-sqs"
+dynamodb-name          = "company"
 lambda-name            = "coursera-project"
 source-account         = "548002151864"

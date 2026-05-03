@@ -543,7 +543,7 @@ resource "aws_dynamodb_table" "coursera-dynamodb-table" {
   read_capacity  = 20
   write_capacity = 20
   hash_key       = "RecordNumber"
-  #range_key      = "datetime"
+  range_key      = "datetime"
 
   # This will be the UUID and how we uniquely identify records
   attribute {

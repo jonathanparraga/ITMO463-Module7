@@ -47,45 +47,63 @@ const s3 = new S3Client({ region: REGION });
 // I hardcoded my S3 bucket name, this you need to determine dynamically
 // Using the AWS JavaScript SDK
 ///////////////////////////////////////////////////////////////////////////
-var bucketName = 'jrh-raw-bucket';
-//listBuckets().then(result =>{bucketName = result;}).catch(err=>{console.error("listBuckets function call failed.")});
-	var upload = multer({
-        storage: multerS3({
-        s3: s3,
-        bucket: bucketName,
-        key: function (req, file, cb) {
-            cb(null, file.originalname);
-            }
-    })
-	});
+var upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: async function (req, file, cb) {
+      try {
+        const params = await listBuckets();
+        cb(null, params.Bucket);
+      } catch (err) {
+        cb(err);
+      }
+    },
+    key: function (req, file, cb) {
+      cb(null, file.originalname);
+    }
+  })
+});
+
 
 //////////////////////////////////////////////////////////
 // Add S3 ListBucket code
 //
-var bucket_name = "";
-const listBuckets = async () => {
+onst getRawBucketName = async () => {
 
-	const client = new S3Client({region: REGION });
-        const command = new ListBucketsCommand({});
-	try {
-		const results = await client.send(command);
-		//console.log("List Buckets Results: ", results.Buckets[0].Name);
-                for ( element of results.Buckets ) {
-                        if ( element.Name.includes("raw") ) {
-                                console.log(element.Name)
-                                bucket_name = element.Name
-                        } }
-                
-                const params = {
-			Bucket: bucket_name
-		}
-		return params;
-	
-} catch (err) {
-	console.error(err);
-}
+  const client = new S3Client({ region: REGION });
+  const command = new ListBucketsCommand({});
+
+  try {
+    const results = await client.send(command);
+																   
+													
+															 
+														 
+														  
+						   
+
+    for (let element of results.Buckets) {
+      if (element.Name.includes("raw")) {
+        console.log("Raw bucket found:", element.Name);
+        return element.Name;
+      }
+    }
+
+    throw new Error("No raw S3 bucket found. Make sure your raw bucket name includes 'raw'.");
+
+  } catch (err) {
+    console.error("listBuckets failed:", err);
+    throw err;
+  }
 };
 
+const listBuckets = async () => {
+  const bucketName = await getRawBucketName();
+
+  return {
+    Bucket: bucketName
+  };
+};
 ///////////////////////////////////////
 // ListObjects S3 
 // https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3/interfaces/listobjectscommandoutput.html
@@ -205,7 +223,7 @@ const subscribeEmailToSNSTopic = async (req, res) => {
   let email = req.body['email']
   const params = {
     // CHANGE ENDPOINT EMAIL TO YOUR OWN
-    Endpoint: email,
+    Endpoint: req.body['email'],
     Protocol: "email",
     TopicArn: topicArn.Topics[0].TopicArn,
   };
@@ -251,19 +269,20 @@ let sqsQueueURL = await listSqsQueueURL(req, res);
 console.log("Sent RecordNumber: " + recordID);
 //let recordID = recNum;
 //let recordID = await retrieveLastDynamoRecordID(recNum);
-const client = new SQSClient( {region: REGION });
-const input = { // SendMessageRequest
-  QueueUrl: sqsQueueURL, // required
-  //MessageBody: String(recordID), // required
-  MessageBody: String(recordID), // required
-};
-const command = new SendMessageCommand(input);
-try {
-const response = await client.send(command);
-return response;
-} catch (err) {
-  console.error(err)
-}
+  
+  const client = new SQSClient({ region: REGION });
+  const input = {
+    QueueUrl: sqsQueueURL,
+    MessageBody: String(recordID),
+											
+  };
+  const command = new SendMessageCommand(input);
+  try {
+    const response = await client.send(command);
+    return response;
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
