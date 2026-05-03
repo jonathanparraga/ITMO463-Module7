@@ -340,6 +340,11 @@ resource "aws_autoscaling_group" "asg" {
     propagate_at_launch = true
   }
 
+  tag {
+    key                 = "Name"
+    value               = var.tag-name
+    propagate_at_launch = true
+  }
   launch_template {
     id      = aws_launch_template.lt.id
     version = "$Latest"
@@ -432,11 +437,17 @@ resource "aws_lb_listener" "front_end" {
 resource "aws_s3_bucket" "raw-bucket" {
   bucket        = var.raw-s3-bucket
   force_destroy = true
+  tags = {
+    Name = var.tag-name
+  }
 }
 
 resource "aws_s3_bucket" "finished-bucket" {
   bucket        = var.finished-s3-bucket
   force_destroy = true
+  tags = {
+    Name = var.tag-name
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "allow_access_from_another_account-raw" {
@@ -551,6 +562,10 @@ resource "aws_dynamodb_table" "coursera-dynamodb-table" {
     type = "S"
   }
 
+  attribute {
+    name = "datetime"
+    type = "N"
+  }
   tags = {
     Name        = var.tag-name
     Environment = "production"
@@ -578,7 +593,12 @@ data "aws_iam_policy_document" "assume_lambda_role" {
 resource "aws_iam_role" "iam_for_lambda" {
   name               = "iam_for_lambda"
   assume_role_policy = data.aws_iam_policy_document.assume_lambda_role.json
+
+  tags = {
+    Name = var.tag-name
+  }
 }
+
 
 # Need to give the aws_iam_role for Lambda S3 access otherwise it won't be
 # able to interact with Amazon resources
@@ -608,11 +628,59 @@ resource "aws_iam_role_policy" "s3_fullaccess_lambda_policy" {
 # Create IAM Role Policy for SNS, SQS, and DynamoDB attach to the lambda role
 ##############################################################################
 
+resource "aws_iam_role_policy" "dynamodb_fullaccess_lambda_policy" {
+  name = "dynamodb_fullaccess_lambda_policy"
+  role = aws_iam_role.iam_for_lambda.id
 
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "dynamodb:*"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
 
+resource "aws_iam_role_policy" "sqs_fullaccess_lambda_policy" {
+  name = "sqs_fullaccess_lambda_policy"
+  role = aws_iam_role.iam_for_lambda.id
 
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "sqs:*"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
 
-# Here
+resource "aws_iam_role_policy" "sns_fullaccess_lambda_policy" {
+  name = "sns_fullaccess_lambda_policy"
+  role = aws_iam_role.iam_for_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "sns:*"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
 
 
 
@@ -631,14 +699,26 @@ resource "aws_lambda_function" "coursera_lambda" {
   handler = "lambda_function.lambda_handler"
   timeout = "120"
 
-  //source_code_hash = data.archive_file.lambda.output_base64sha256
-
-  runtime = "python3.12"
+  source_code_hash = filebase64sha256("my_deployment_package.zip")
+  runtime          = "python3.10"
+  depends_on = [
+    aws_iam_role_policy.cloudwatch_basic_lambda_policy,
+    aws_iam_role_policy.s3_fullaccess_lambda_policy,
+    aws_iam_role_policy.dynamodb_fullaccess_lambda_policy,
+    aws_iam_role_policy.sqs_fullaccess_lambda_policy,
+    aws_iam_role_policy.sns_fullaccess_lambda_policy
+  ]
 
   environment {
     variables = {
-      Name = var.tag-name
+      Name            = var.tag-name
+      DYNAMODB_TABLE  = var.dynamodb-name
+      FINISHED_BUCKET = aws_s3_bucket.finished-bucket.bucket
+      SNS_TOPIC_ARN   = aws_sns_topic.user_updates.arn
     }
+  }
+  tags = {
+    Name = var.tag-name
   }
 }
 
