@@ -68,7 +68,7 @@ var upload = multer({
 //////////////////////////////////////////////////////////
 // Add S3 ListBucket code
 //
-onst getRawBucketName = async () => {
+const getRawBucketName = async () => {
 
   const client = new S3Client({ region: REGION });
   const command = new ListBucketsCommand({});
